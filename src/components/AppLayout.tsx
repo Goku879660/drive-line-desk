@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Calendar, Users, Car, ClipboardList, Wrench, ShieldCheck,
@@ -7,6 +7,12 @@ import {
   BarChart3, UserCog, Settings, ChevronLeft, ChevronRight, Plus, Search, Bell, Command
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -36,6 +42,16 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const quickCreateItems = [
+    { label: 'New Customer', icon: Users, path: '/customers' },
+    { label: 'New Vehicle', icon: Car, path: '/vehicles' },
+    { label: 'New Appointment', icon: ClipboardList, path: '/appointments' },
+    { label: 'New Work Order', icon: Wrench, path: '/work-orders' },
+    { label: 'New Quote', icon: FileText, path: '/quotes' },
+    { label: 'New Invoice', icon: Receipt, path: '/invoices' },
+  ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -59,14 +75,26 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Quick Create */}
         {!collapsed && (
           <div className="px-2 pt-2">
-            <Button size="sm" className="w-full h-7 text-xs gap-1.5 bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground">
-              <Plus className="h-3 w-3" /> Quick Create
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="w-full h-7 text-xs gap-1.5 bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground">
+                  <Plus className="h-3 w-3" /> Quick Create
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {quickCreateItems.map((item) => (
+                  <DropdownMenuItem key={item.label} onClick={() => navigate(item.path)} className="text-xs gap-2 cursor-pointer">
+                    <item.icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto scrollbar-thin py-2 px-2 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto scrollbar-thin py-2 px-2 space-y-0.5 select-none">
           {navItems.map((item) => {
             const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to));
             return (
