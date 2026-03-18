@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Calendar, Users, Car, ClipboardList, Wrench, ShieldCheck,
@@ -7,6 +7,12 @@ import {
   BarChart3, UserCog, Settings, ChevronLeft, ChevronRight, Plus, Search, Bell, Command
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
