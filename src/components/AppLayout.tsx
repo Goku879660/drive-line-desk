@@ -94,7 +94,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         )}
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto scrollbar-thin py-2 px-2 space-y-0.5">
+        <nav className="flex-1 overflow-y-auto scrollbar-thin py-2 px-2 space-y-0.5 select-none">
           {navItems.map((item) => {
             const isActive = location.pathname === item.to || (item.to !== '/' && location.pathname.startsWith(item.to));
             return (
