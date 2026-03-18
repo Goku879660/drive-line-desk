@@ -42,6 +42,16 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const quickCreateItems = [
+    { label: 'New Customer', icon: Users, path: '/customers' },
+    { label: 'New Vehicle', icon: Car, path: '/vehicles' },
+    { label: 'New Appointment', icon: ClipboardList, path: '/appointments' },
+    { label: 'New Work Order', icon: Wrench, path: '/work-orders' },
+    { label: 'New Quote', icon: FileText, path: '/quotes' },
+    { label: 'New Invoice', icon: Receipt, path: '/invoices' },
+  ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
