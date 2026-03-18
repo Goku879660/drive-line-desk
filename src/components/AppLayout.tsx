@@ -75,9 +75,21 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Quick Create */}
         {!collapsed && (
           <div className="px-2 pt-2">
-            <Button size="sm" className="w-full h-7 text-xs gap-1.5 bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground">
-              <Plus className="h-3 w-3" /> Quick Create
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="w-full h-7 text-xs gap-1.5 bg-sidebar-primary hover:bg-sidebar-primary/90 text-sidebar-primary-foreground">
+                  <Plus className="h-3 w-3" /> Quick Create
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {quickCreateItems.map((item) => (
+                  <DropdownMenuItem key={item.label} onClick={() => navigate(item.path)} className="text-xs gap-2 cursor-pointer">
+                    <item.icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
 
