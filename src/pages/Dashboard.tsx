@@ -1,154 +1,153 @@
 import { KPICard } from '@/components/KPICard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DataTable } from '@/components/DataTable';
-import { appointments, workOrders, invoices, vehicles, parts, communications, getCustomer, getVehicle, getTeamMember } from '@/data/demo';
-import { Wrench, Calendar, Receipt, AlertTriangle, Car, CreditCard, Users, Clock } from 'lucide-react';
+import { useWorkshopStore } from '@/context/WorkshopContext';
+import { Wrench, Calendar, Receipt, AlertTriangle, Car, CreditCard, Users, Clock, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-const todayAppts = appointments.filter(a => {
-  const d = new Date(a.scheduled_start);
-  const now = new Date();
-  return d.toDateString() === now.toDateString();
-});
-
-const activeWOs = workOrders.filter(wo => !['closed', 'invoiced'].includes(wo.status));
-const overdueInvoices = invoices.filter(i => i.status === 'overdue');
-const lowStockParts = parts.filter(p => p.stock_quantity <= p.min_stock_level);
-const vehiclesExpiring = vehicles.filter(v => {
-  if (!v.apk_expiry) return false;
-  const exp = new Date(v.apk_expiry);
-  const inDays = (exp.getTime() - Date.now()) / 86400000;
-  return inDays <= 30 && inDays > -90;
-});
-
-const revenueToday = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0);
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { appointments, communications, getCustomer, getVehicle, invoices, parts, workOrders } = useWorkshopStore();
+
+  const today = new Date().toDateString();
+  const todayAppts = appointments.filter((item) => new Date(item.scheduled_start).toDateString() === today);
+  const activeWOs = workOrders.filter((item) => !['closed', 'invoiced'].includes(item.status));
+  const overdueInvoices = invoices.filter((item) => item.status === 'overdue');
+  const lowStockParts = parts.filter((item) => item.stock_quantity <= item.min_stock_level);
+  const vehiclesExpiring = appointments
+    .map((appointment) => getVehicle(appointment.vehicle_id))
+    .filter(Boolean)
+    .filter((vehicle, index, self) => self.findIndex((item) => item?.id === vehicle?.id) === index)
+    .filter((vehicle) => {
+      if (!vehicle?.apk_expiry) return false;
+      const inDays = (new Date(vehicle.apk_expiry).getTime() - Date.now()) / 86400000;
+      return inDays <= 30 && inDays > -90;
+    });
+  const revenueToday = invoices.filter((item) => item.status === 'paid').reduce((sum, item) => sum + item.total, 0);
+  const readyForPickup = workOrders.filter((item) => item.status === 'completed' || item.status === 'invoiced');
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
           <p className="text-xs text-muted-foreground">Workshop overview for today</p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => navigate('/appointments')}>
+            <Calendar className="h-3 w-3" /> View planning
+          </Button>
+          <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => navigate('/work-orders')}>
+            <ClipboardList className="h-3 w-3" /> Open queue
+          </Button>
+        </div>
       </div>
 
-      {/* KPI Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-        <KPICard title="Today's Appts" value={todayAppts.length} icon={Calendar} subtitle={`${todayAppts.filter(a => a.status === 'confirmed').length} confirmed`} />
-        <KPICard title="Active WOs" value={activeWOs.length} icon={Wrench} subtitle={`${activeWOs.filter(w => w.priority === 'urgent').length} urgent`} variant={activeWOs.filter(w => w.priority === 'urgent').length > 0 ? 'danger' : 'default'} />
-        <KPICard title="Overdue Invoices" value={overdueInvoices.length} icon={Receipt} subtitle={`€${overdueInvoices.reduce((s, i) => s + i.balance_due, 0).toFixed(0)}`} variant={overdueInvoices.length > 0 ? 'danger' : 'default'} />
+        <KPICard title="Today's Appts" value={todayAppts.length} icon={Calendar} subtitle={`${todayAppts.filter((item) => item.status === 'confirmed').length} confirmed`} />
+        <KPICard title="Active WOs" value={activeWOs.length} icon={Wrench} subtitle={`${activeWOs.filter((item) => item.priority === 'urgent').length} urgent`} variant={activeWOs.some((item) => item.priority === 'urgent') ? 'danger' : 'default'} />
+        <KPICard title="Overdue Invoices" value={overdueInvoices.length} icon={Receipt} subtitle={`€${overdueInvoices.reduce((sum, item) => sum + item.balance_due, 0).toFixed(0)}`} variant={overdueInvoices.length > 0 ? 'danger' : 'default'} />
         <KPICard title="Low Stock" value={lowStockParts.length} icon={AlertTriangle} variant={lowStockParts.length > 0 ? 'warning' : 'default'} />
         <KPICard title="APK Expiring" value={vehiclesExpiring.length} icon={Car} subtitle="Within 30 days" variant={vehiclesExpiring.length > 0 ? 'warning' : 'default'} />
-        <KPICard title="Revenue (Paid)" value={`€${revenueToday.toFixed(0)}`} icon={CreditCard} trend={{ value: 12, label: 'vs last week' }} variant="success" />
-        <KPICard title="Customers" value="12" icon={Users} subtitle="2 new this week" />
-        <KPICard title="Utilization" value="78%" icon={Clock} subtitle="2 technicians" />
+        <KPICard title="Revenue (Paid)" value={`€${revenueToday.toFixed(0)}`} icon={CreditCard} variant="success" />
+        <KPICard title="Customers" value={new Set(appointments.map((item) => item.customer_id)).size} icon={Users} subtitle="active in current schedule" />
+        <KPICard title="Ready Pickup" value={readyForPickup.length} icon={Clock} subtitle="completed or invoiced" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Today's Appointments */}
         <div>
           <h2 className="text-sm font-semibold mb-2 text-foreground">Today's Appointments</h2>
           <DataTable
             data={todayAppts}
             columns={[
-              { key: 'scheduled_start', header: 'Time', render: (a) => <span className="text-xs font-mono tabular-nums">{new Date(a.scheduled_start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span> },
-              { key: 'customer_id', header: 'Customer', render: (a) => { const c = getCustomer(a.customer_id); return <span className="text-xs font-medium">{c ? `${c.first_name} ${c.last_name}` : '—'}</span>; } },
-              { key: 'vehicle_id', header: 'Vehicle', render: (a) => { const v = getVehicle(a.vehicle_id); return <span className="text-xs font-mono">{v?.license_plate || '—'}</span>; } },
-              { key: 'appointment_type', header: 'Type', render: (a) => <span className="text-xs">{a.appointment_type}</span> },
-              { key: 'status', header: 'Status', render: (a) => <StatusBadge status={a.status} /> },
+              { key: 'scheduled_start', header: 'Time', render: (item) => <span className="text-xs font-mono tabular-nums">{new Date(item.scheduled_start).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}</span> },
+              { key: 'customer_id', header: 'Customer', render: (item) => <span className="text-xs font-medium">{getCustomer(item.customer_id)?.first_name} {getCustomer(item.customer_id)?.last_name}</span> },
+              { key: 'vehicle_id', header: 'Vehicle', render: (item) => <span className="text-xs font-mono">{getVehicle(item.vehicle_id)?.license_plate || '—'}</span> },
+              { key: 'appointment_type', header: 'Type', render: (item) => <span className="text-xs">{item.appointment_type}</span> },
+              { key: 'status', header: 'Status', render: (item) => <StatusBadge status={item.status} /> },
             ]}
-            onRowClick={(a) => navigate('/appointments')}
+            onRowClick={() => navigate('/appointments')}
             searchFields={['appointment_type']}
             searchPlaceholder="Search appointments..."
           />
         </div>
 
-        {/* Active Work Orders */}
         <div>
           <h2 className="text-sm font-semibold mb-2 text-foreground">Active Work Orders</h2>
           <DataTable
             data={activeWOs}
             columns={[
-              { key: 'work_order_number', header: 'WO #', render: (wo) => <span className="text-xs font-mono font-medium">{wo.work_order_number}</span> },
-              { key: 'customer_id', header: 'Customer', render: (wo) => { const c = getCustomer(wo.customer_id); return <span className="text-xs">{c ? `${c.first_name} ${c.last_name}` : '—'}</span>; } },
-              { key: 'vehicle_id', header: 'Vehicle', render: (wo) => { const v = getVehicle(wo.vehicle_id); return <span className="text-xs font-mono">{v?.license_plate || '—'}</span>; } },
-              { key: 'priority', header: 'Priority', render: (wo) => <StatusBadge status={wo.priority} /> },
-              { key: 'status', header: 'Status', render: (wo) => <StatusBadge status={wo.status} /> },
+              { key: 'work_order_number', header: 'WO #', render: (item) => <span className="text-xs font-mono font-medium">{item.work_order_number}</span> },
+              { key: 'customer_id', header: 'Customer', render: (item) => <span className="text-xs">{getCustomer(item.customer_id)?.first_name} {getCustomer(item.customer_id)?.last_name}</span> },
+              { key: 'vehicle_id', header: 'Vehicle', render: (item) => <span className="text-xs font-mono">{getVehicle(item.vehicle_id)?.license_plate || '—'}</span> },
+              { key: 'priority', header: 'Priority', render: (item) => <StatusBadge status={item.priority} /> },
+              { key: 'status', header: 'Status', render: (item) => <StatusBadge status={item.status} /> },
             ]}
-            onRowClick={(wo) => navigate('/work-orders')}
-            searchFields={['work_order_number']}
+            onRowClick={() => navigate('/work-orders')}
+            searchFields={['work_order_number', 'intake_notes']}
             searchPlaceholder="Search work orders..."
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Recent Communications */}
         <div>
           <h2 className="text-sm font-semibold mb-2 text-foreground">Recent Communications</h2>
           <div className="border rounded-md bg-card divide-y">
-            {communications.slice(0, 5).map(com => {
-              const customer = getCustomer(com.customer_id);
+            {communications.slice(0, 5).map((item) => {
+              const customer = getCustomer(item.customer_id);
               return (
-                <div key={com.id} className="px-3 py-2 hover:bg-muted/50 transition-fast cursor-pointer">
+                <button key={item.id} className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-fast" onClick={() => navigate('/communications')}>
                   <div className="flex items-center gap-2">
-                    <StatusBadge status={com.channel} />
+                    <StatusBadge status={item.channel} />
                     <span className="text-xs font-medium truncate">{customer ? `${customer.first_name} ${customer.last_name}` : '—'}</span>
-                    <span className="text-2xs text-muted-foreground ml-auto">{new Date(com.timestamp).toLocaleDateString('nl-NL')}</span>
+                    <span className="text-2xs text-muted-foreground ml-auto">{new Date(item.timestamp).toLocaleDateString('nl-NL')}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{com.subject}</p>
-                </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.subject}</p>
+                </button>
               );
             })}
           </div>
         </div>
 
-        {/* Low Stock Alerts */}
         <div>
           <h2 className="text-sm font-semibold mb-2 text-foreground">Low Stock Alerts</h2>
           <div className="border rounded-md bg-card divide-y">
             {lowStockParts.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs text-muted-foreground">All stock levels OK</div>
             ) : (
-              lowStockParts.map(p => (
-                <div key={p.id} className="px-3 py-2 hover:bg-muted/50 transition-fast cursor-pointer">
+              lowStockParts.map((item) => (
+                <button key={item.id} className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-fast" onClick={() => navigate('/parts')}>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">{p.description}</span>
-                    <span className={`text-xs font-mono font-medium ${p.stock_quantity === 0 ? 'text-destructive' : 'text-warning'}`}>
-                      {p.stock_quantity}/{p.min_stock_level}
-                    </span>
+                    <span className="text-xs font-medium">{item.description}</span>
+                    <span className="text-xs font-mono font-medium">{item.stock_quantity}/{item.min_stock_level}</span>
                   </div>
-                  <span className="text-2xs text-muted-foreground font-mono">{p.sku}</span>
-                </div>
+                  <span className="text-2xs text-muted-foreground font-mono">{item.sku}</span>
+                </button>
               ))
             )}
           </div>
         </div>
 
-        {/* APK Expiring Soon */}
         <div>
           <h2 className="text-sm font-semibold mb-2 text-foreground">APK Expiring Soon</h2>
           <div className="border rounded-md bg-card divide-y">
             {vehiclesExpiring.length === 0 ? (
               <div className="px-3 py-6 text-center text-xs text-muted-foreground">No APK expiring soon</div>
             ) : (
-              vehiclesExpiring.map(v => {
-                const c = getCustomer(v.customer_id);
-                const daysLeft = Math.ceil((new Date(v.apk_expiry!).getTime() - Date.now()) / 86400000);
-                return (
-                  <div key={v.id} className="px-3 py-2 hover:bg-muted/50 transition-fast cursor-pointer">
+              vehiclesExpiring.map((vehicle) => {
+                const customer = vehicle ? getCustomer(vehicle.customer_id) : undefined;
+                const daysLeft = vehicle?.apk_expiry ? Math.ceil((new Date(vehicle.apk_expiry).getTime() - Date.now()) / 86400000) : 0;
+                return vehicle ? (
+                  <button key={vehicle.id} className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-fast" onClick={() => navigate('/vehicles')}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-medium">{v.license_plate}</span>
-                      <span className={`text-xs font-medium ${daysLeft < 0 ? 'text-destructive' : daysLeft < 14 ? 'text-warning' : 'text-muted-foreground'}`}>
-                        {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
-                      </span>
+                      <span className="text-xs font-mono font-medium">{vehicle.license_plate}</span>
+                      <span className="text-xs font-medium">{daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}</span>
                     </div>
-                    <p className="text-2xs text-muted-foreground">{v.make} {v.model} — {c ? `${c.first_name} ${c.last_name}` : '—'}</p>
-                  </div>
-                );
+                    <p className="text-2xs text-muted-foreground">{vehicle.make} {vehicle.model} — {customer ? `${customer.first_name} ${customer.last_name}` : '—'}</p>
+                  </button>
+                ) : null;
               })
             )}
           </div>
